@@ -11,25 +11,17 @@ For more information on H3 and for the full API documentation, please see the [H
 
 ## Build from sources
 
-first install official h3 library
+first install official h3 library, and switch to official release at v3.7.1 (master or newer doesn't work)
 
 ```bash
 % git clone https://github.com/uber/h3.git
+% git checkout tags/v3.7.1 --force
 % cd h3
-% cmake3 -DBUILD_SHARED_LIBS=ON .
+% mkdir build
+% cd build
+% cmake -DBUILD_SHARED_LIBS=ON ..
 % make -j4
 % make install
-```
-
-before compile php h3 extension, you may need run this:
-
-```bash
-sudo cp /usr/local/lib/libh3.* /usr/local/lib64/
-sudo cp /usr/local/lib/libh3.* /usr/lib/
-sudo cp /usr/local/lib/libh3.* /usr/lib64/
-sudo echo '/usr/local/lib64/' >> /etc/ld.so.conf
-sudo echo '/usr/lib64/' >> /etc/ld.so.conf
-sudo ldconfig
 ```
 
 then compile and install h3 php binding:
