@@ -1450,6 +1450,77 @@ static void php_h3_init_globals(zend_h3_globals *h3_globals)
 */
 /* }}} */
 
+PHP_FUNCTION(polyfill)
+{
+    zend_object *polygon;
+    zend_long res;
+
+    // clang-format off
+    ZEND_PARSE_PARAMETERS_START(2, 2)
+        Z_PARAM_OBJ_OF_CLASS(polygon, H3_GeoPolygon_ce)
+        Z_PARAM_LONG(res)
+    ZEND_PARSE_PARAMETERS_END();
+    // clang-format on
+
+    VALIDATE_H3_RES(res);
+
+    zval *geofence_val;
+    zval rv;
+    zend_object *geofence_obj;
+    zval *geofence_verts_val;
+    zend_array *geofence_verts_arr;
+    zval *holes_val;
+    zend_array *holes_arr;
+
+    geofence_val = zend_read_property(H3_GeoPolygon_ce, polygon, "geofence", sizeof("geofence") - 1, 1, &rv);
+    geofence_obj = Z_OBJ_P(geofence_val);
+
+    geofence_verts_val = zend_read_property(H3_GeoBoundary_ce, geofence_obj, "vertices", sizeof("vertices") - 1, 1, &rv);
+    geofence_verts_arr = Z_ARR_P(geofence_verts_val);
+
+    uint32_t geofence_num_verts = zend_array_count(geofence_verts_arr);
+    GeoCoord *geofence_verts = ecalloc(geofence_num_verts, sizeof(GeoCoord));
+
+    if (zend_array_to_geocoord_array(geofence_verts_arr, geofence_verts) != 0) {
+        zend_throw_exception(H3_H3Exception_ce, 1, "must be valid GeoPolygon object");
+        efree(geofence_verts);
+        RETURN_THROWS();
+    }
+
+    holes_val = zend_read_property(H3_GeoPolygon_ce, polygon, "holes", sizeof("holes") - 1, 1, &rv);
+    holes_arr = Z_ARR_P(holes_val);
+
+    uint32_t num_holes = zend_array_count(holes_arr);
+    Geofence *holes = ecalloc(num_holes, sizeof(Geofence));
+
+    if (zend_array_to_geofence_array(holes_arr, holes) != 0) {
+        zend_throw_exception(H3_H3Exception_ce, 1, "must be valid GeoPolygon object");
+        efree(geofence_verts);
+        efree(holes);
+        RETURN_THROWS();
+    }
+
+    GeoPolygon geo_polygon = {
+        .geofence = {
+            .numVerts = geofence_num_verts,
+            .verts = geofence_verts,
+        },
+        .numHoles = num_holes,
+        .holes = holes,
+    };
+
+    int max = maxPolyfillSize(&geo_polygon, res);
+    H3Index *out = ecalloc(max, sizeof(H3Index));
+    polyfill(&geo_polygon, res, out);
+
+    array_init(return_value);
+    h3_array_to_zend_array(out, max, return_value);
+
+    efree(geofence_verts);
+    efree(holes);
+    efree(out);
+}
+
 /* {{{ PHP_MINIT_FUNCTION
  */
 PHP_MINIT_FUNCTION(h3)
